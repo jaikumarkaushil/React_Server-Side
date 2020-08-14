@@ -1,0 +1,5 @@
+mongoose is installed to integrate the REST API server node application which we have in the confusionServer folder with the database,
+here MongoDB with the help of mongoose which internally uses MongoDB driver is used.
+
+mongoose-currency package is instally to have another type of schema which we will use in our project. 
+This was used since we will use the price property in the schema.

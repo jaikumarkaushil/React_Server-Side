@@ -1,5 +1,10 @@
+// updated the routers for supporting the integration of the database with the rest api end points
+// this files serves the business logic which will initiate the database operation on the backend with the help of mongoose
 const express = require('express');
 const bodyParser = require('body-parser');
+const mongoose =require('mongoose'); 
+
+const Dishes = require('../models/dishes');
 
 const dishRouter = express.Router();
 
@@ -8,42 +13,76 @@ dishRouter.use(bodyParser.json());
 // method 1 without if/else condition
 
 dishRouter.route('/')
-.all((req,res,next) => {  //next is a callback function, irrespective of which method is called, the default page will be at /dishes endpoint. .all will the use of various methods to the specified endpoint.
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    next();
-})
 // with the next callback, the modified data (req,res) is then passed to subsequent codes/methods, here get and post both will receive the res.statusCode and res.setHeaders, which follows below if used for same endpoint.
 .get((req, res, next) => {
-    res.end('Will send all the dishes to you!') // since we have used the res.end here, therefore the request is ended over here. 
+    Dishes.find({})
+    .then((dishes) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dishes);  // this will put the dishes collection/ document in the message body of the get request
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
+    .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
 .post((req, res, next) => {
-    res.end('Will add the dish: ' + req.body.name + ' with details: ' + req.body.description);
+    Dishes.create(req.body)
+    .then((dish) => {
+        console.log('Dish Created ', dish);
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 })
-.put((req, res, next) => {
-    res.statusCode = 403;
-    res.end('PUT operation is not supported on /dishes');
-})
+// .put((req, res, next) => {
+//     res.statusCode = 403;
+//     res.end('PUT operation is not supported on /dishes');
+// })
 .delete((req, res, next) => {
-    res.end('Deleting all the dishes!') // since we have used the res.end here, therefore the request is ended over here. 
+    Dishes.remove({})
+    .then((resp) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json');
+        res.json(resp);
+    }, (err) => next(err))
+    .catch((err) => next(err));
 });
 
 
 dishRouter.route('/:dishId')
 .get((req, res, next) => {
-    res.end('Will send the dishes of the dish: ' + req.params.dishId + ' to you!') // since we have used the res.end here, therefore the request is ended over here. 
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);  // this will put the dishes collection/ document in the message body of the get request
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
+    .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
 .post((req, res, next) => {
     res.end('POST operation is not supported on /dishes/' + req.params.dishId);
 })
 .put((req, res, next) => {
-    res.write('Updating the dish: ' + req.params.dishId + '\n');
-    res.end('Will update the dish: ' + req.body.name + ' with details: ' + req.body.description);
-})
+    Dishes.findByIdAndUpdate(req.params.dishId, {
+        $set: req.body
+    }, {new: true})
+    .then((dish) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);  
+    }, (err) => next(err)) 
+    .catch((err) => next(err));
+
+ })
 .delete((req, res, next) => {
-    res.end('Deleting dish: ' + req.params.dishId); // since we have used the res.end here, therefore the request is ended over here. 
+    Dishes.findByIdAndRemove(req.params.dishId)
+    .then((dish) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json(dish);  
+    }, (err) => next(err)) 
+    .catch((err) => next(err));
 });
 
 module.exports = dishRouter;
