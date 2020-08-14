@@ -5,6 +5,7 @@ const bodyParser = require('body-parser');
 const mongoose =require('mongoose'); 
 
 const Dishes = require('../models/dishes');
+// const { request } = require('../app');
 
 const dishRouter = express.Router();
 
@@ -82,6 +83,158 @@ dishRouter.route('/:dishId')
         res.setHeader('Content-Type', 'application/json');
         res.json(dish);  
     }, (err) => next(err)) 
+    .catch((err) => next(err));
+});
+
+dishRouter.route('/:dishId/comments')
+// with the next callback, the modified data (req,res) is then passed to subsequent codes/methods, here get and post both will receive the res.statusCode and res.setHeaders, which follows below if used for same endpoint.
+.get((req, res, next) => {
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        if (dish != null) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.json(dish.comments);  // this will put the comments documents to dish document in the message body of the get request
+        }
+        else {
+            err = new Error('Dish ' + req.params.dishId + ' not found')
+            err.status = 404;
+            return next(err);
+        } 
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
+    .catch((err) => next(err));
+})
+// with the use of body-parser we now have the access to the req.body which is in json format.
+.post((req, res, next) => {
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        if (dish != null) {
+            dish.comments.push(req.body);
+            dish.save()
+            .then((dish) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(dish);  //this will send the updated dish to the user on client side.
+            },(err) => next(err))
+        }
+        else {
+            err = new Error('Dish ' + req.params.dishId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+    }, (err) => next(err))
+    .catch((err) => next(err));
+})
+.put((req, res, next) => {
+    res.statusCode = 403;
+    res.end('PUT operation is not supported on /dishes' + req.params.dishId + '/comments');
+})
+.delete((req, res, next) => {
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        if (dish != null) {
+            for (var i = (dish.comments.length -1); i >=0; i--){
+                dish.comments.id(dish.comments[i]._id).remove(); //dish.comments.id(dish.comments[i]._id) - this is used to access the subdocuments inside a document
+            }
+                dish.save()
+                .then((dish) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'application/json');
+                    res.json(dish);  //this will send the updated dish to the user on client side.
+            },(err) => next(err))
+        }
+        else {
+            err = new Error('Dish ' + req.params.dishId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+        
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
+    .catch((err) => next(err));
+});
+
+
+dishRouter.route('/:dishId/comments/:commentId')
+.get((req, res, next) => {
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        if (dish != null && dish.comments.id(req.params.commentId) != null) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json');
+            res.json(dish.comments.id(req.params.commentId));  // this will put the comments documents to dish document in the message body of the get request
+        }
+        else if (dish == null){
+            err = new Error('Dish ' + req.params.dishId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+        else {
+            err = new Error('Comment ' + req.params.commentId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
+    .catch((err) => next(err));
+})
+// with the use of body-parser we now have the access to the req.body which is in json format.
+.post((req, res, next) => {
+    res.end('POST operation is not supported on /dishes/' + req.params.dishId + '/comments/' + req.params.commentId);
+})
+.put((req, res, next) => {
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        if (dish != null && dish.comments.id(req.params.commentId) != null) {  // there is no specific way to handle the modifiication of subdocument (embedded document) fields and their value. This is the best way which works very well
+            if (req.body.rating) {
+                dish.comments.id(req.params.commentId).rating = req.body.rating;
+            }
+            if (req.body.comment){
+                dish.comments.id(req.params.commentId).comment = req.body.comment;
+            }
+            dish.save()
+            .then((dish) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(dish);  
+            },(err) => next(err))
+        }
+        else if (dish == null){
+            err = new Error('Dish ' + req.params.dishId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+        else {
+            err = new Error('Comment ' + req.params.commentId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
+    .catch((err) => next(err));
+
+ })
+.delete((req, res, next) => {
+    Dishes.findById(req.params.dishId)
+    .then((dish) => {
+        if (dish != null && dish.comments.id(req.params.commentId) != null) {
+            dish.comments.id(req.params.commentId).remove();
+            dish.save()
+            .then((dish) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'application/json');
+                res.json(dish);  //this will send the updated dish to the user on client side.
+            },(err) => next(err))
+        }
+        else if (dish == null){
+            err = new Error('Dish ' + req.params.dishId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+        else {
+            err = new Error('Comment ' + req.params.commentId + ' not found')
+            err.status = 404;
+            return next(err);
+        }
+        
+    }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
     .catch((err) => next(err));
 });
 
