@@ -34,10 +34,10 @@ dishRouter.route('/')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-// .put((req, res, next) => {
-//     res.statusCode = 403;
-//     res.end('PUT operation is not supported on /dishes');
-// })
+.put((req, res, next) => {
+    res.statusCode = 403;
+    res.end('PUT operation is not supported on /dishes');
+})
 .delete((req, res, next) => {
     Dishes.remove({})
     .then((resp) => {
