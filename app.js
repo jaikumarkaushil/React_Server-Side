@@ -32,6 +32,42 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+function auth(req, res, next) {
+  console.log(req.headers);
+
+  var authHeader = req.headers.authorization;
+
+  if (!authHeader) {
+    var err = new Error('You are not authenticated!');
+    
+    res.setHeader('www-Authenticate', 'Basic');
+    err.status = 401;
+    return next(err);
+  }
+  console.log(authHeader);
+
+  var auth = new Buffer(authHeader.split(' ')[1], 'base64').toString().split(':');
+  // Buffer enables the split method, since authHeader is a string, we will split authHeader by space at position 1, the result will again be splited by : so as to retrive the username and password. The final output is an array of username and password.
+  var username = auth[0];
+  var password = auth[1];
+
+  // if client/user is authenciated then it can view the next resources passing throung the middleware. 
+  // If not, then the user will be challenged with www-Authenticate, Basic and it will move to the err handling part with next(err).
+  if (username === 'admin' && password === 'password') {
+    next();  //from this, the next middleware will be executed which is after the app.use(auth)
+  }
+  else{
+    var err = new Error('You are not authenticated!');
+    
+    res.setHeader('www-Authenticate', 'Basic');
+    err.status = 401;
+    return next(err);
+  }
+}
+
+app.use(auth);
+// at this point, it is required to have authorization so that the client can access any of the contents after this point
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
