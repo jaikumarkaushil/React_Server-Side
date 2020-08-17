@@ -2,6 +2,8 @@ var express = require('express');
 
 const bodyParser = require('body-parser');
 var User = require('../models/user');
+var passport = require('passport');
+
 
 var router = express.Router();
 router.use(bodyParser.json());
@@ -10,82 +12,30 @@ router.use(bodyParser.json());
 router.get('/', function(req, res, next) {
   res.send('respond with a resource');
 });
-
+// previously, the authentication was handled by the headers of the request but with the use of passport, we are sending the information in body of the request
 router.post('/signup', (req, res, next) => {
-  User.findOne({username: req.body.username})
-  .then((user) => {
-    if(user != null) {
-      var err = new Error('User ' + req.body.username + ' already exists!');
-      err.status = 403;
-      next(err);
+  User.register(new User({username: req.body.username}), // .register is mongoose plugin on schemas defined
+    req.body.password, (err, user) => {
+    if(err) {
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.json({err: err});
     }
     else {
-      return User.create({
-        username: req.body.username,
-        password: req.body.password});
+      passport.authenticate('local')(req, res, () => { // passport module is used here. when the user is authenticated then only the next function will be executed, otherwise , the function handles the response - (req, res, () => {})
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'application/json');
+        res.json({success: true, status: 'Registration Successful!'}); // the success flag will help in the client side for quickly undertake the state of registration status.
+      });
     }
-  })
-  .then((user) => {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json');
-    res.json({status: 'Registration Successful!', user: user});
-  }, (err) => next(err))
-  .catch((err) => next(err));
+  });
 });
 
-// to track the user, to know whether a user is logged in or not
-router.post('/login', (req, res, next) => {
-  console.log(req.session.user);
-  if (!req.session.user) {
-  
-    var authHeader = req.headers.authorization;
-
-    if (!authHeader) {
-      var err = new Error('You are not authenticated!');
-
-      res.setHeader('WWW-Authenticate', 'Basic');
-      err.status = 401;
-      return next(err);
-    }
-
-    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-    // Buffer.from enables the split method, since authHeader is a string, we will split authHeader by space at position 1, the result will again be splited by : so as to retrive the username and password. The final output is an array of username and password.
-    var username = auth[0];
-    var password = auth[1];
-
-    // if client/user is authenciated then it can view the next resources passing throung the middleware. 
-    // If not, then the user will be challenged with www-Authenticate, Basic and it will move to the err handling part with next(err).
-    User.findOne({username: username})
-    .then((user) => {
-      console.log(username);
-      if( user === null) {
-        var err = new Error('User ' + username + ' does not exist');
-        
-        res.setHeader('www-Authenticate', 'Basic');
-        err.status = 403;
-        return next(err);
-      }
-      else if (user.password != password) {
-        var err = new Error('Your password is incorrect');
-        err.status = 403;
-        return next(err);
-      }
-      else if (user.username === username && user.password === password) {
-        // res.cookie('user', 'admin', { signed: true})  // here we are registering the user with admin along with signed value for encryption
-        req.session.user = 'authenticated';
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/plain')
-        res.end('You are authenticated');
-      }
-    })
-    .catch((err) => next(err));
-  }
-  else {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/plain');
-    res.end('You are already authenticated');
-  }
-})
+router.post('/login', passport.authenticate('local'), (req, res) => {  // the next is not required for handling the error since the body will have the response, retrieving which we can track the user.
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.json({success: true, status: 'You are successfully logged in!'});
+});
 // for logout
 router.get('/logout', (req, res) => {
   if(req.session) {
