@@ -3,7 +3,9 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-
+var session = require('express-session');  // express-session middleware  
+var FileStore = require('session-file-store')(session);
+//using express-session we no longer need cookie-parser for signed cookie, using session we can store the information for longer period
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var dishRouter = require('./routes/dishRouter');
@@ -14,6 +16,7 @@ var leaderRouter = require('./routes/leaderRouter');
 const mongoose = require('mongoose');
 
 const Dishes = require('./models/dishes');
+const { RequestHeaderFieldsTooLarge } = require('http-errors');
 
 const url = 'mongodb://localhost:27017/conFusion';
 const connect = mongoose.connect(url, {useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false, useCreateIndex: true});
@@ -31,49 +34,37 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser('12324-53243-43333-54623'));  // we have used signed cookie with a secret key which enables the encryption of the cookie.
+// app.use(cookieParser('12324-53243-43333-54623'));  // we have used signed cookie with a secret key which enables the encryption of the cookie.
 
-function auth(req, res, next) {
-  console.log(req.signedCookies);
 
-  if (!req.signedCookies.user) {
-    var authHeader = req.headers.authorization;
 
-    if (!authHeader) {
+app.use(session({
+  name: 'session-id',
+  secret: '12324-53243-43333-54623',
+  saveUninitialized: false,
+  resave: false, // it is not required as at this point of time
+  store: new FileStore()
+}));
+// this session will be available in request
+
+app.use('/', indexRouter);
+app.use('/users', usersRouter);
+
+function auth (req, res, next) {
+  console.log(req.session);
+
+  if(!req.session.user) {
       var err = new Error('You are not authenticated!');
-      
-      res.setHeader('www-Authenticate', 'Basic');
-      err.status = 401;
+      err.status = 403;
       return next(err);
-    }
-
-    var auth = new Buffer.from(authHeader.split(' ')[1], 'base64').toString().split(':');
-    // Buffer.from enables the split method, since authHeader is a string, we will split authHeader by space at position 1, the result will again be splited by : so as to retrive the username and password. The final output is an array of username and password.
-    var username = auth[0];
-    var password = auth[1];
-
-    // if client/user is authenciated then it can view the next resources passing throung the middleware. 
-    // If not, then the user will be challenged with www-Authenticate, Basic and it will move to the err handling part with next(err).
-    if (username === 'admin' && password === 'password') {
-      res.cookie('user', 'admin', { signed: true})  // here we are registering the user with admin along with signed value for encryption
-      next();  //from this, the next middleware will be executed which is after the app.use(auth)
-    }
-    else{
-      var err = new Error('You are not authenticated!');
-      
-      res.setHeader('www-Authenticate', 'Basic');
-      err.status = 401;
-      return next(err);
-    }
   }
-  else{
-    if (req.signedCookies.user == 'admin') {
+  else {
+    if (req.session.user === 'authenticated') {
       next();
     }
-    else {  // this else is not required since if the cookies are not setup, user will not be prompted to authenticate
+    else {
       var err = new Error('You are not authenticated!');
-      
-      err.status = 401;
+      err.status = 403;
       return next(err);
     }
   }
@@ -83,8 +74,6 @@ app.use(auth);
 // at this point, it is required to have authorization so that the client can access any of the contents after this point
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.use('/', indexRouter);
-app.use('/users', usersRouter);
 app.use('/dishes', dishRouter);
 app.use('/promotions', promoRouter);
 app.use('/leaders', leaderRouter);
