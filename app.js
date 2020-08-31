@@ -7,7 +7,9 @@ var session = require('express-session');  // express-session middleware
 var FileStore = require('session-file-store')(session);
 //using express-session we no longer need cookie-parser for signed cookie, using session we can store the information for longer period
 var passport = require('passport');
-var authenticate = require('./authenticate');
+var authenticate = require('./authenticate');  // used methods of authenticate in this file.
+
+var config = require('./config');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -21,7 +23,7 @@ const mongoose = require('mongoose');
 const Dishes = require('./models/dishes');
 const { RequestHeaderFieldsTooLarge } = require('http-errors');
 
-const url = 'mongodb://localhost:27017/conFusion';
+const url = config.mongoUrl;
 const connect = mongoose.connect(url, {useNewUrlParser: true, useUnifiedTopology: true, useFindAndModify: false, useCreateIndex: true});
 
 connect.then((db) => {
@@ -40,36 +42,16 @@ app.use(express.urlencoded({ extended: false }));
 // app.use(cookieParser('12324-53243-43333-54623'));  // we have used signed cookie with a secret key which enables the encryption of the cookie.
 
 
-
-app.use(session({
-  name: 'session-id',
-  secret: '12324-53243-43333-54623',
-  saveUninitialized: false,
-  resave: false, // it is not required as at this point of time
-  store: new FileStore()
-}));
+// seesion is removed with use of JSOn web token
 
 app.use(passport.initialize());
-app.use(passport.session());
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
-function auth (req, res, next) {
-  if(!req.user) {
-      var err = new Error('You are not authenticated!');
-      err.status = 403;
-      return next(err);
-  }
-  else {  // since passport will have done the authentication thus conditions are not required, and we can simply pass to the next middleware.
-    next();
-  }
-}
-
-app.use(auth);
-// at this point, it is required to have authorization so that the client can access any of the contents after this point
 app.use(express.static(path.join(__dirname, 'public')));
 
+// with use of JSON web token we will allow the user to get the request for all, only authenticated users will able to put, post and delete the data from rest endpoints.
 app.use('/dishes', dishRouter);
 app.use('/promotions', promoRouter);
 app.use('/leaders', leaderRouter);

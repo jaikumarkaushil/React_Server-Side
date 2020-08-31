@@ -4,6 +4,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mongoose =require('mongoose'); 
 
+const authenticate = require('../authenticate');
+
 const Dishes = require('../models/dishes');
 // const { request } = require('../app');
 
@@ -25,7 +27,7 @@ dishRouter.route('/')
     .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => { // the user will able to post only it is verified user with middleware authenticate.verifyUser provided in authenticate.js file
     Dishes.create(req.body)
     .then((dish) => {
         console.log('Dish Created ', dish);
@@ -35,11 +37,11 @@ dishRouter.route('/')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation is not supported on /dishes');
 })
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Dishes.remove({})
     .then((resp) => {
         res.statusCode = 200
@@ -61,10 +63,10 @@ dishRouter.route('/:dishId')
     .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => {
     res.end('POST operation is not supported on /dishes/' + req.params.dishId);
 })
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     Dishes.findByIdAndUpdate(req.params.dishId, {
         $set: req.body
     }, {new: true})
@@ -76,7 +78,7 @@ dishRouter.route('/:dishId')
     .catch((err) => next(err));
 
  })
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Dishes.findByIdAndRemove(req.params.dishId)
     .then((dish) => {
         res.statusCode = 200;
@@ -105,7 +107,7 @@ dishRouter.route('/:dishId/comments')
     .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId)
     .then((dish) => {
         if (dish != null) {
@@ -125,11 +127,11 @@ dishRouter.route('/:dishId/comments')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation is not supported on /dishes' + req.params.dishId + '/comments');
 })
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId)
     .then((dish) => {
         if (dish != null) {
@@ -177,10 +179,10 @@ dishRouter.route('/:dishId/comments/:commentId')
     .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
-.post((req, res, next) => {
+.post(authenticate.verifyUser, (req, res, next) => {
     res.end('POST operation is not supported on /dishes/' + req.params.dishId + '/comments/' + req.params.commentId);
 })
-.put((req, res, next) => {
+.put(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId)
     .then((dish) => {
         if (dish != null && dish.comments.id(req.params.commentId) != null) {  // there is no specific way to handle the modifiication of subdocument (embedded document) fields and their value. This is the best way which works very well
@@ -211,7 +213,7 @@ dishRouter.route('/:dishId/comments/:commentId')
     .catch((err) => next(err));
 
  })
-.delete((req, res, next) => {
+.delete(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId)
     .then((dish) => {
         if (dish != null && dish.comments.id(req.params.commentId) != null) {
