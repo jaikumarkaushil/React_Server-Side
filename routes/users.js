@@ -24,10 +24,23 @@ router.post('/signup', (req, res, next) => {
       res.json({err: err});
     }
     else {
-      passport.authenticate('local')(req, res, () => { // passport module is used here. when the user is authenticated then only the next function will be executed, otherwise , the function handles the response - (req, res, () => {})
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'application/json');
-        res.json({success: true, status: 'Registration Successful!'}); // the success flag will help in the client side for quickly undertake the state of registration status.
+      if (req.body.firstname)
+        user.firstname = req.body.firstname;
+      if (req.body.lastname)
+        user.lastname = req.body.lastname;
+
+      user.save((err, user) => {
+        if(err) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'application/json');
+          res.json({err: err});
+          return;
+        }
+          passport.authenticate('local')(req, res, () => { // passport module is used here. when the user is authenticated then only the next function will be executed, otherwise , the function handles the response - (req, res, () => {})
+          res.statusCode = 200;
+          res.setHeader('Content-Type', 'application/json');
+          res.json({success: true, status: 'Registration Successful!'}); // the success flag will help in the client side for quickly undertake the state of registration status.
+        });
       });
     }
   });

@@ -6,7 +6,17 @@ var Schema = mongoose.Schema;
 var passportLocalMongoose = require('passport-local-mongoose'); // if mongoose for databases is not used in the project then passport-local is used for local authentication.
 
 var User = new Schema({
-    // username and password will be automatically added to the project.
+    // moongose population should be used judicially
+    firstname: {
+        type: String,
+        default: ''
+    },
+    lastname: {
+        type: String,
+        default: ''
+    },
+    // username and password will be automatically added to the project with the use of passport local mongoose.
+    // hash and salt were automatically added with passport local mongoose 
     admin:   {
         type: Boolean,
         default: false

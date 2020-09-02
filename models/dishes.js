@@ -17,8 +17,8 @@ const commentSchema = new Schema({
         required: true
     },
     author:  {
-        type: String,
-        required: true
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User' // reference to user model Id, by this we would connect the two documents in MongoDB but it should be use judicially since it may cause searching which will degrade the performance
     }
 }, {
     timestamps: true
