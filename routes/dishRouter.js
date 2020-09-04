@@ -28,7 +28,7 @@ dishRouter.route('/')
     .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
-.post(authenticate.verifyUser, (req, res, next) => { // the user will able to post only it is verified user with middleware authenticate.verifyUser provided in authenticate.js file
+.post(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => { // the user will able to post only it is verified user with middleware authenticate.verifyUser provided in authenticate.js file
     Dishes.create(req.body)
     .then((dish) => {
         console.log('Dish Created ', dish);
@@ -38,11 +38,11 @@ dishRouter.route('/')
     }, (err) => next(err))
     .catch((err) => next(err));
 })
-.put(authenticate.verifyUser, (req, res, next) => {
+.put(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     res.statusCode = 403;
     res.end('PUT operation is not supported on /dishes');
 })
-.delete(authenticate.verifyUser, (req, res, next) => {
+.delete(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dishes.remove({})
     .then((resp) => {
         res.statusCode = 200
@@ -65,10 +65,10 @@ dishRouter.route('/:dishId')
     .catch((err) => next(err));
 })
 // with the use of body-parser we now have the access to the req.body which is in json format.
-.post(authenticate.verifyUser, (req, res, next) => {
+.post(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     res.end('POST operation is not supported on /dishes/' + req.params.dishId);
 })
-.put(authenticate.verifyUser, (req, res, next) => {
+.put(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dishes.findByIdAndUpdate(req.params.dishId, {
         $set: req.body
     }, {new: true})
@@ -78,9 +78,8 @@ dishRouter.route('/:dishId')
         res.json(dish);  
     }, (err) => next(err)) 
     .catch((err) => next(err));
-
- })
-.delete(authenticate.verifyUser, (req, res, next) => {
+})
+.delete(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dishes.findByIdAndRemove(req.params.dishId)
     .then((dish) => {
         res.statusCode = 200;
@@ -115,7 +114,7 @@ dishRouter.route('/:dishId/comments')
     Dishes.findById(req.params.dishId)
     .then((dish) => {
         if (dish != null) {
-            req.body.author = req.user._id;  // with the help pverifyuser middleware, we now have the user information , so we can now refer it to the user logged in.
+            req.body.author = req.user._id;  // with the help of verifyuser middleware, we now have the user information , so we can now refer it to the user logged in.
             dish.comments.push(req.body);
             dish.save()
             .then((dish) => {
@@ -141,7 +140,7 @@ dishRouter.route('/:dishId/comments')
     res.statusCode = 403;
     res.end('PUT operation is not supported on /dishes' + req.params.dishId + '/comments');
 })
-.delete(authenticate.verifyUser, (req, res, next) => {
+.delete(authenticate.verifyUser, authenticate.verifyAdmin, (req, res, next) => {
     Dishes.findById(req.params.dishId)
     .then((dish) => {
         if (dish != null) {
@@ -196,34 +195,39 @@ dishRouter.route('/:dishId/comments/:commentId')
 .put(authenticate.verifyUser, (req, res, next) => {
     Dishes.findById(req.params.dishId)
     .then((dish) => {
-        if (dish != null && dish.comments.id(req.params.commentId) != null) {  // there is no specific way to handle the modifiication of subdocument (embedded document) fields and their value. This is the best way which works very well
-            if (req.body.rating) {
-                dish.comments.id(req.params.commentId).rating = req.body.rating;
+        const userID = req.user._id;
+        console.log(req.body.comments);
+        // if(req.user._id.equals(comments.author)) {
+            if (dish != null && dish.comments.id(req.params.commentId) != null) {  // there is no specific way to handle the modifiication of subdocument (embedded document) fields and their value. This is the best way which works very well
+                if (req.body.rating) {
+                    dish.comments.id(req.params.commentId).rating = req.body.rating;
+                }
+                if (req.body.comment){
+                    dish.comments.id(req.params.commentId).comment = req.body.comment;
+                }
+                dish.save()
+                .then((dish) => {
+                    Dishes.findById(dish._id)
+                        .populate('comments.author')
+                        .then((dish) => {
+                            res.statusCode = 200;
+                            res.setHeader('Content-Type', 'application/json');
+                            res.json(dish);
+                        })  
+                },(err) => next(err))
             }
-            if (req.body.comment){
-                dish.comments.id(req.params.commentId).comment = req.body.comment;
+            else if (dish == null){
+                err = new Error('Dish ' + req.params.dishId + ' not found')
+                err.status = 404;
+                return next(err);
             }
-            dish.save()
-            .then((dish) => {
-                Dishes.findById(dish._id)
-                    .populate('comments.author')
-                    .then((dish) => {
-                        res.statusCode = 200;
-                        res.setHeader('Content-Type', 'application/json');
-                        res.json(dish);
-                    })  
-            },(err) => next(err))
-        }
-        else if (dish == null){
-            err = new Error('Dish ' + req.params.dishId + ' not found')
-            err.status = 404;
-            return next(err);
-        }
-        else {
-            err = new Error('Comment ' + req.params.commentId + ' not found')
-            err.status = 404;
-            return next(err);
-        }
+            else {
+                err = new Error('Comment ' + req.params.commentId + ' not found')
+                err.status = 404;
+                return next(err);
+            }
+        // }
+        
     }, (err) => next(err)) // with this I will pass the error to the error handling that will take care of it.
     .catch((err) => next(err));
 

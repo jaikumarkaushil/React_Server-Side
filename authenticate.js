@@ -37,7 +37,19 @@ exports.jwtPassport = passport.use(new JwtStrategy(opts,
                     return done(null, false);
                 }
             })
+            
         }// done is callback provided by jwt
     ));
 
 exports.verifyUser = passport.authenticate('jwt', {session: false}); // this will verify the user once authenticated.
+exports.verifyAdmin = (req, res, next) => { // passport module is used here. when the user is authenticated then only the next function will be executed, otherwise , the function handles the response - (req, res, () => {})
+    if (req.user.admin) {
+        next();
+    }
+    else {
+        var err = new Error('You are not authorized to perform this operation');
+        res.statusCode = 401;
+        return next(err);
+    }
+     // the success flag will help in the client side for quickly undertake the state of registration status.
+};
